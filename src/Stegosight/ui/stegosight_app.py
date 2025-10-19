@@ -42,6 +42,15 @@ class FileDropArea(QLabel):
         self.setWordWrap(True)
         self.setObjectName("FileDropArea")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self._prompt = prompt
+
+    def setPrompt(self, prompt: str) -> None:
+        """Update the displayed prompt text."""
+
+        if prompt == self._prompt:
+            return
+        self._prompt = prompt
+        self.setText(prompt)
 
     # Drag & drop support -------------------------------------------------
     def dragEnterEvent(self, event):  # type: ignore[override]
@@ -67,6 +76,49 @@ class FileDropArea(QLabel):
             if file_path:
                 self.fileSelected.emit(file_path)
         super().mousePressEvent(event)
+
+
+class PreviewImageLabel(QLabel):
+    """Image preview label that keeps aspect ratio on resize."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._pixmap: QPixmap | None = None
+        self._message: str | None = None
+        self.setAlignment(Qt.AlignCenter)
+        self.setObjectName("EmbedPreview")
+
+    def setImage(self, pixmap: QPixmap | None) -> None:
+        self._pixmap = pixmap if pixmap and not pixmap.isNull() else None
+        if self._pixmap is None:
+            self.clear()
+            return
+        self._message = None
+        self._apply_scaled_pixmap()
+
+    def clear(self) -> None:  # type: ignore[override]
+        self._message = None
+        super().clear()
+        super().setPixmap(QPixmap())
+
+    def showMessage(self, message: str) -> None:
+        self._pixmap = None
+        self._message = message
+        super().setPixmap(QPixmap())
+        super().setText(message)
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        if self._pixmap is not None:
+            self._apply_scaled_pixmap()
+
+    def _apply_scaled_pixmap(self) -> None:
+        if self._pixmap is None or self._pixmap.isNull():
+            return
+        scaled = self._pixmap.scaled(
+            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        super().setPixmap(scaled)
 
 
 class RiskScoreWidget(QFrame):
@@ -149,8 +201,9 @@ class StegoSightApp(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("STEGOSIGHT")
-        self.resize(1200, 800)
+        self.setWindowTitle("STEGOSIGHT - Stego & Anti-Stego Intelligent Guard")
+        self.resize(1400, 900)
+        self.setMinimumSize(1200, 800)
 
         self.apply_modern_theme()
 
@@ -174,6 +227,26 @@ class StegoSightApp(QMainWindow):
         self.embed_method_card_map: dict[MethodCard, str] = {}
         self.embed_method_container_layout: QVBoxLayout | None = None
         self.embed_method_container: QWidget | None = None
+        self.embed_media_buttons: dict[str, QPushButton] = {}
+        self.embed_media_supports = {
+            "image": "รองรับไฟล์ภาพ: PNG, JPEG, JPG, BMP",
+            "audio": "รองรับไฟล์เสียง: WAV, MP3, FLAC",
+            "video": "รองรับไฟล์วิดีโอ: AVI, MP4, MKV, MOV, OGG, WMA, AAC",
+        }
+        self.embed_media_prompts = {
+            "image": "🖼️ ลากไฟล์ภาพมาวาง หรือกดเพื่อเลือกไฟล์",
+            "audio": "🎧 ลากไฟล์เสียงมาวาง หรือกดเพื่อเลือกไฟล์",
+            "video": "🎞️ ลากไฟล์วิดีโอมาวาง หรือกดเพื่อเลือกไฟล์",
+        }
+        self.embed_media_summaries = {
+            "image": "เทคนิคที่เหมาะกับไฟล์ภาพ เช่น Content-Adaptive, LSB Matching, PVD และ DCT",
+            "audio": "เทคนิคที่ออกแบบมาสำหรับไฟล์เสียง ทั้ง Adaptive Audio, LSB และ Metadata",
+            "video": "เทคนิคสำหรับไฟล์วิดีโอ ครอบคลุมการปรับอัตโนมัติ LSB และ Metadata",
+        }
+        self._embed_preview_source: str | None = None
+        self.cover_support_label: QLabel | None = None
+        self.embed_method_summary_label: QLabel | None = None
+        self.embed_hint_label: QLabel | None = None
 
         self.extract_selected_media_type = "image"
         self.extract_selected_method = "adaptive"
@@ -515,7 +588,7 @@ class StegoSightApp(QMainWindow):
                 },
                 "audio_metadata": {
                     "title": "🏷️ Metadata Tagging",
-                    "desc": "ฝังข้อมูลในเมทาดาทาของไฟล์เสียง (ID3/Tag)",
+                    "desc": "ฝังข้อมูลใน Meta Tag (ID3/Tag สำหรับ MP3/FLAC)",
                 },
             },
             "video": {
@@ -599,6 +672,7 @@ class StegoSightApp(QMainWindow):
         for key, meta in methods.items():
             card = MethodCard(meta["title"], meta["desc"])
             card.clicked.connect(lambda _, c=card: self._select_embed_method_card(c))
+            card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
             layout.addWidget(card)
             self.embed_method_cards.append(card)
             self.embed_method_card_map[card] = key
@@ -631,9 +705,39 @@ class StegoSightApp(QMainWindow):
         if media_type not in self.embed_method_definitions:
             return
         if self.embed_selected_media_type == media_type and self.embed_method_cards:
+            self._update_embed_media_context(media_type)
             return
         self.embed_selected_media_type = media_type
         self._populate_embed_method_cards(media_type)
+        self._update_embed_media_context(media_type)
+
+    def _update_embed_media_context(self, media_type: str) -> None:
+        prompt = self.embed_media_prompts.get(media_type)
+        if prompt and hasattr(self, "cover_drop") and isinstance(self.cover_drop, FileDropArea):
+            self.cover_drop.setPrompt(prompt)
+
+        support_text = self.embed_media_supports.get(
+            media_type, self.embed_media_supports.get("image")
+        )
+        if self.cover_support_label is not None:
+            if support_text:
+                self.cover_support_label.setText(support_text)
+            else:
+                self.cover_support_label.clear()
+
+        summary_text = self.embed_media_summaries.get(
+            media_type, self.embed_media_summaries.get("image")
+        )
+        if self.embed_method_summary_label is not None:
+            if summary_text:
+                self.embed_method_summary_label.setText(summary_text)
+            else:
+                self.embed_method_summary_label.clear()
+
+        for key, button in self.embed_media_buttons.items():
+            button.blockSignals(True)
+            button.setChecked(key == media_type)
+            button.blockSignals(False)
 
     def _populate_extract_method_cards(self, media_type: str) -> None:
         layout = self.extract_method_container_layout
@@ -708,16 +812,31 @@ class StegoSightApp(QMainWindow):
 
         splitter = QSplitter(Qt.Horizontal)
 
+        control_scroll = QScrollArea()
+        control_scroll.setWidgetResizable(True)
+        control_scroll.setFrameShape(QFrame.NoFrame)
+        control_scroll.setMinimumWidth(380)
+
         control_panel = QWidget()
         control_layout = QVBoxLayout(control_panel)
+        control_layout.setContentsMargins(0, 0, 0, 0)
         control_layout.setSpacing(18)
 
         # Step 1 ---------------------------------------------------------
         step1_group = QGroupBox("ขั้นตอนที่ 1: เลือกไฟล์ต้นฉบับ (Cover File)")
         step1_layout = QVBoxLayout(step1_group)
-        self.cover_drop = FileDropArea("🖼️ ลากไฟล์มาวางที่นี่ หรือกดเพื่อเลือกไฟล์")
+        step1_layout.setSpacing(12)
+        prompt = self.embed_media_prompts.get(
+            self.embed_selected_media_type,
+            "🖼️ ลากไฟล์มาวางที่นี่ หรือกดเพื่อเลือกไฟล์",
+        )
+        self.cover_drop = FileDropArea(prompt)
         self.cover_drop.fileSelected.connect(self.on_cover_file_selected)
         step1_layout.addWidget(self.cover_drop)
+        self.cover_support_label = QLabel()
+        self.cover_support_label.setWordWrap(True)
+        self.cover_support_label.setStyleSheet("color: #546e7a; font-size: 12px;")
+        step1_layout.addWidget(self.cover_support_label)
         control_layout.addWidget(step1_group)
 
         # Step 2 ---------------------------------------------------------
@@ -779,27 +898,44 @@ class StegoSightApp(QMainWindow):
         step4_group = QGroupBox("ขั้นตอนที่ 4: เลือกเทคนิคการซ่อน")
         step4_layout = QVBoxLayout(step4_group)
         step4_layout.setSpacing(12)
+        media_row = QHBoxLayout()
+        media_row.setSpacing(8)
+        media_row.addWidget(QLabel("เลือกประเภทไฟล์:"))
+        for key, label in (
+            ("image", "🖼️ ไฟล์ภาพ"),
+            ("audio", "🎧 ไฟล์เสียง"),
+            ("video", "🎞️ ไฟล์วิดีโอ"),
+        ):
+            button = QPushButton(label)
+            button.setCheckable(True)
+            button.setObjectName("toggleButton")
+            button.clicked.connect(lambda _, media=key: self._set_embed_media_type(media))
+            self.embed_media_buttons[key] = button
+            media_row.addWidget(button)
+        media_row.addStretch(1)
+        step4_layout.addLayout(media_row)
 
-        method_desc = QLabel(
-            "เลือกเทคนิคที่ใช้ซ่อนข้อมูลให้ตรงกับไฟล์ หรือใช้โหมด Content-Adaptive"
-        )
-        method_desc.setWordWrap(True)
-        step4_layout.addWidget(method_desc)
+        self.embed_method_summary_label = QLabel()
+        self.embed_method_summary_label.setWordWrap(True)
+        self.embed_method_summary_label.setStyleSheet("color: #455a64; font-size: 13px;")
+        step4_layout.addWidget(self.embed_method_summary_label)
 
+        method_scroll = QScrollArea()
+        method_scroll.setWidgetResizable(True)
+        method_scroll.setFrameShape(QFrame.NoFrame)
         self.embed_method_container = QWidget()
         self.embed_method_container_layout = QVBoxLayout(self.embed_method_container)
         self.embed_method_container_layout.setContentsMargins(0, 0, 0, 0)
         self.embed_method_container_layout.setSpacing(10)
-        step4_layout.addWidget(self.embed_method_container)
+        method_scroll.setWidget(self.embed_method_container)
+        step4_layout.addWidget(method_scroll)
 
-        self._populate_embed_method_cards(self.embed_selected_media_type)
-
-        embed_hint = QLabel(
+        self.embed_hint_label = QLabel(
             "โหมด Content-Adaptive จะเลือกค่าที่เหมาะสมให้โดยอัตโนมัติ แต่ยังสามารถเลือกวิธีเฉพาะได้"
         )
-        embed_hint.setWordWrap(True)
-        embed_hint.setStyleSheet("color: #546e7a; font-size: 13px;")
-        step4_layout.addWidget(embed_hint)
+        self.embed_hint_label.setWordWrap(True)
+        self.embed_hint_label.setStyleSheet("color: #546e7a; font-size: 12px;")
+        step4_layout.addWidget(self.embed_hint_label)
         control_layout.addWidget(step4_group)
 
         control_layout.addStretch(1)
@@ -809,7 +945,8 @@ class StegoSightApp(QMainWindow):
         self.embed_button.clicked.connect(self.on_embed_clicked)
         control_layout.addWidget(self.embed_button)
 
-        splitter.addWidget(control_panel)
+        control_scroll.setWidget(control_panel)
+        splitter.addWidget(control_scroll)
 
         # Context panel --------------------------------------------------
         self.embed_context_stack = QStackedWidget()
@@ -823,6 +960,10 @@ class StegoSightApp(QMainWindow):
         splitter.setStretchFactor(1, 2)
 
         layout.addWidget(splitter)
+
+        self._populate_embed_method_cards(self.embed_selected_media_type)
+        self._update_embed_media_context(self.embed_selected_media_type)
+
         return container
 
     def _create_embed_idle_state(self) -> QWidget:
@@ -840,10 +981,8 @@ class StegoSightApp(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setSpacing(16)
 
-        self.embed_preview_label = QLabel()
-        self.embed_preview_label.setFixedHeight(280)
-        self.embed_preview_label.setAlignment(Qt.AlignCenter)
-        self.embed_preview_label.setObjectName("EmbedPreview")
+        self.embed_preview_label = PreviewImageLabel()
+        self.embed_preview_label.setMinimumHeight(260)
 
         info_card = QFrame()
         info_card.setObjectName("InfoPanel")
@@ -1227,20 +1366,23 @@ class StegoSightApp(QMainWindow):
     def _update_embed_preview(self, path: str) -> None:
         if not self.embed_preview_label or not self.embed_file_info_label:
             return
-        self.embed_preview_label.clear()
-        if os.path.exists(path) and path.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
+        self._embed_preview_source = None
+        image_exts = (".png", ".jpg", ".jpeg", ".bmp")
+        if os.path.exists(path) and path.lower().endswith(image_exts):
             pixmap = QPixmap(path)
-            if not pixmap.isNull():
-                scaled = pixmap.scaled(
-                    self.embed_preview_label.size(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
-                )
-                self.embed_preview_label.setPixmap(scaled)
+            if pixmap.isNull():
+                self.embed_preview_label.setImage(None)
+                self.embed_preview_label.showMessage("ไม่สามารถแสดงตัวอย่างไฟล์นี้ได้")
             else:
-                self.embed_preview_label.setText("ไม่สามารถแสดงตัวอย่างไฟล์นี้ได้")
+                self._embed_preview_source = path
+                self.embed_preview_label.setImage(pixmap)
         else:
-            self.embed_preview_label.setText("ไม่สามารถแสดงตัวอย่างไฟล์นี้ได้")
+            self.embed_preview_label.setImage(None)
+            fallback = (
+                f"ไฟล์: {os.path.basename(path)}\n"
+                f"ประเภท: {os.path.splitext(path)[1] or 'ไม่ทราบ'}"
+            )
+            self.embed_preview_label.showMessage(fallback)
 
         file_size = os.path.getsize(path) if os.path.exists(path) else 0
         info_text = (
