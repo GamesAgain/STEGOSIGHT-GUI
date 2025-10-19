@@ -1,9 +1,14 @@
 import sys
+from pathlib import Path
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 
-from Stegosight.ui.stegosight_app import StegoSightApp
+if __package__ is None or __package__ == "":
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+    from Stegosight.ui.stegosight_app import StegoSightApp
+else:
+    from .ui.stegosight_app import StegoSightApp
 
 
 def main() -> None:
