@@ -137,163 +137,260 @@ class StegoSightApp(QMainWindow):
 
     # ------------------------------------------------------------------
     def apply_modern_theme(self) -> None:
+        app = QApplication.instance()
+        if app is None:
+            return
+
         palette = QPalette()
-        dark_bg = QColor("#1e1e1e")
-        light_text = QColor("#f0f0f0")
-        highlight = QColor("#007acc")
-        palette.setColor(QPalette.Window, dark_bg)
-        palette.setColor(QPalette.WindowText, light_text)
-        palette.setColor(QPalette.Base, QColor("#1a1a1a"))
-        palette.setColor(QPalette.AlternateBase, dark_bg)
-        palette.setColor(QPalette.Text, light_text)
-        palette.setColor(QPalette.Button, QColor("#252526"))
-        palette.setColor(QPalette.ButtonText, light_text)
-        palette.setColor(QPalette.Highlight, highlight)
-        palette.setColor(QPalette.HighlightedText, QColor("#0f0f0f"))
-        QApplication.instance().setPalette(palette)
+        palette.setColor(QPalette.Window, QColor("#f5f5f5"))
+        palette.setColor(QPalette.WindowText, QColor("#1b1b1b"))
+        palette.setColor(QPalette.Base, QColor("#ffffff"))
+        palette.setColor(QPalette.AlternateBase, QColor("#f0f0f0"))
+        palette.setColor(QPalette.Text, QColor("#1b1b1b"))
+        palette.setColor(QPalette.Button, QColor("#ffffff"))
+        palette.setColor(QPalette.ButtonText, QColor("#1b1b1b"))
+        palette.setColor(QPalette.Highlight, QColor("#1E88E5"))
+        palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+        app.setPalette(palette)
 
         qss = """
+        QWidget {
+            font-family: "Sarabun", "Segoe UI", "Tahoma";
+        }
+
         QMainWindow {
-            background-color: #1e1e1e;
-            color: #cccccc;
+            background-color: #f5f5f5;
+            color: #333333;
         }
 
         QLabel, QPlainTextEdit, QTextBrowser {
-            color: #cccccc;
+            color: #424242;
             background: transparent;
             font-size: 14px;
         }
 
         QGroupBox {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            margin-top: 16px;
-            padding: 16px;
-            background-color: #252526;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin-top: 12px;
+            padding: 18px;
+            background-color: #ffffff;
             font-weight: 600;
-            font-size: 15px;
         }
 
         QGroupBox::title {
             subcontrol-origin: margin;
-            left: 12px;
-            padding: 0 4px;
-            color: #f3f3f3;
+            left: 15px;
+            padding: 0 8px 8px 8px;
+            color: #1E88E5;
+            font-size: 14px;
         }
 
         #FileDropArea {
-            border: 2px dashed rgba(0, 122, 204, 0.6);
-            border-radius: 14px;
-            padding: 32px 16px;
-            background-color: rgba(0, 122, 204, 0.1);
+            border: 2px dashed #90caf9;
+            border-radius: 12px;
+            padding: 28px 16px;
+            background-color: #f0f7ff;
+            color: #1565c0;
             font-size: 15px;
         }
 
         #FileDropArea:hover {
-            border-color: #4fc3f7;
-            background-color: rgba(79, 195, 247, 0.12);
+            border-color: #1E88E5;
+            background-color: #e3f2fd;
         }
 
         QPushButton {
-            background-color: #2d2d2d;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 12px 20px;
-            color: #e0e0e0;
-            font-size: 15px;
-        }
-
-        QPushButton:hover {
-            background-color: #3a3d41;
-        }
-
-        QPushButton[primary="true"] {
-            background-color: #007acc;
-            border: none;
-            color: white;
-            padding: 16px 24px;
-            font-size: 16px;
+            background-color: #ffffff;
+            border: 1px solid #1E88E5;
+            border-radius: 8px;
+            padding: 10px 18px;
+            color: #1E88E5;
+            font-size: 14px;
             font-weight: 600;
         }
 
+        QPushButton:hover {
+            background-color: #e3f2fd;
+        }
+
+        QPushButton[primary="true"] {
+            background-color: #1E88E5;
+            border: none;
+            color: white;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
         QPushButton[primary="true"]:hover {
-            background-color: #1f91e6;
+            background-color: #1565C0;
         }
 
         QTabWidget::pane {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 14px;
             padding: 12px;
-            background-color: #1f1f1f;
+            background-color: #ffffff;
+        }
+
+        QTabBar {
+            background-color: #f0f0f0;
         }
 
         QTabBar::tab {
             background: transparent;
-            color: #cccccc;
-            padding: 12px 24px;
+            color: #616161;
+            padding: 14px 26px;
             margin: 4px;
-            border-radius: 12px;
-            font-size: 15px;
-        }
-
-        QTabBar::tab:selected {
-            background-color: #007acc;
-            color: white;
-        }
-
-        QTabBar::tab:hover {
-            background-color: rgba(0, 122, 204, 0.45);
-        }
-
-        QLineEdit, QComboBox {
-            background-color: #2a2a2a;
-            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 10px;
-            padding: 10px;
-            color: #f3f3f3;
-        }
-
-        QPlainTextEdit, QTextBrowser {
-            background-color: #1b1b1b;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        QCheckBox {
-            spacing: 12px;
             font-size: 14px;
         }
 
+        QTabBar::tab:selected {
+            background-color: #ffffff;
+            color: #1E88E5;
+            border: 2px solid #1E88E5;
+        }
+
+        QTabBar::tab:hover {
+            background-color: #e3f2fd;
+            color: #1E88E5;
+        }
+
+        QLineEdit, QComboBox {
+            background-color: #ffffff;
+            border: 1px solid #d0d5dd;
+            border-radius: 8px;
+            padding: 10px;
+            color: #1b1b1b;
+            font-size: 14px;
+        }
+
+        QPlainTextEdit, QTextBrowser {
+            background-color: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #d0d5dd;
+        }
+
+        QCheckBox {
+            spacing: 10px;
+            font-size: 14px;
+            color: #424242;
+        }
+
         #RiskScoreWidget {
-            background-color: #252526;
-            border-radius: 18px;
-            border: 1px solid rgba(0, 122, 204, 0.35);
+            background-color: #f9f9f9;
+            border-radius: 14px;
+            border: 1px solid #e0e0e0;
         }
 
         #RiskScoreValue {
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 700;
-            color: #4fc3f7;
+            color: #1E88E5;
         }
 
         #RiskScoreLevel {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
+            color: #424242;
+        }
+
+        #RiskScoreWidget QLabel {
+            color: #424242;
         }
 
         QProgressBar {
-            border-radius: 12px;
-            background-color: #2f2f2f;
+            border-radius: 8px;
+            background-color: #e0e0e0;
             text-align: center;
-            height: 24px;
+            height: 20px;
         }
 
         QProgressBar::chunk {
+            border-radius: 8px;
+            background-color: #1E88E5;
+        }
+
+        QScrollArea {
+            border: none;
+            background: transparent;
+        }
+
+        QHeaderView::section {
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            padding: 6px;
+        }
+
+        #EmbedPreview {
+            border: 2px dashed #cfd8dc;
+            border-radius: 16px;
+            background-color: #fafafa;
+            color: #90a4ae;
+        }
+
+        #InfoPanel {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
             border-radius: 12px;
-            background-color: #1f91e6;
+            padding: 18px;
+        }
+
+        #SuccessCard {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 18px;
+            padding: 24px;
+        }
+
+        #SuccessHeadline {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+
+        #EmbedRiskLabel {
+            font-size: 16px;
+            color: #2e7d32;
+        }
+
+        #SuccessCard QPushButton {
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        #AnalyzeGuidanceFrame {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-left: 4px solid #1E88E5;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        #AnalyzeGuidanceLabel {
+            color: #1e3a5f;
+            font-size: 13px;
+        }
+
+        #AnalyzeFileLabel, #AnalyzeSummaryLabel {
+            color: #424242;
+            font-size: 13px;
+        }
+
+        QTableWidget {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+        }
+
+        QTableWidget::item {
+            padding: 6px;
         }
         """
-        QApplication.instance().setStyleSheet(qss)
+        app.setStyleSheet(qss)
 
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
@@ -423,7 +520,7 @@ class StegoSightApp(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         label = QLabel("🕒 รอการเลือกไฟล์...")
         label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("font-size: 22px; color: #808080;")
+        label.setStyleSheet("font-size: 22px; color: #9e9e9e;")
         layout.addWidget(label)
         return widget
 
@@ -435,14 +532,10 @@ class StegoSightApp(QMainWindow):
         self.embed_preview_label = QLabel()
         self.embed_preview_label.setFixedHeight(280)
         self.embed_preview_label.setAlignment(Qt.AlignCenter)
-        self.embed_preview_label.setStyleSheet(
-            "border-radius: 16px; background-color: #1b1b1b;"
-        )
+        self.embed_preview_label.setObjectName("EmbedPreview")
 
         info_card = QFrame()
-        info_card.setStyleSheet(
-            "background-color: #252526; border-radius: 16px; padding: 18px;"
-        )
+        info_card.setObjectName("InfoPanel")
         info_layout = QVBoxLayout(info_card)
         self.embed_file_info_label = QLabel("ยังไม่มีข้อมูลไฟล์")
         self.embed_file_info_label.setWordWrap(True)
@@ -461,7 +554,7 @@ class StegoSightApp(QMainWindow):
 
         label = QLabel("กำลังซ่อนข้อมูล...")
         label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("font-size: 20px;")
+        label.setStyleSheet("font-size: 20px; color: #1E88E5;")
 
         self.embed_progress_bar = QProgressBar()
         self.embed_progress_bar.setRange(0, 0)
@@ -478,16 +571,14 @@ class StegoSightApp(QMainWindow):
         layout.setSpacing(16)
 
         card = QFrame()
-        card.setStyleSheet(
-            "background-color: #1f4f66; border-radius: 20px; padding: 24px;"
-        )
+        card.setObjectName("SuccessCard")
         card_layout = QVBoxLayout(card)
         success_label = QLabel("✅ ซ่อนข้อมูลสำเร็จ!")
         success_label.setAlignment(Qt.AlignCenter)
-        success_label.setStyleSheet("font-size: 22px; font-weight: 600;")
+        success_label.setObjectName("SuccessHeadline")
         self.embed_risk_label = QLabel("Risk Score: -")
         self.embed_risk_label.setAlignment(Qt.AlignCenter)
-        self.embed_risk_label.setStyleSheet("font-size: 18px;")
+        self.embed_risk_label.setObjectName("EmbedRiskLabel")
         card_layout.addWidget(success_label)
         card_layout.addWidget(self.embed_risk_label)
 
@@ -570,7 +661,7 @@ class StegoSightApp(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         label = QLabel("⌛ รอการดึงข้อมูล...")
         label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("font-size: 22px; color: #808080;")
+        label.setStyleSheet("font-size: 22px; color: #9e9e9e;")
         layout.addWidget(label)
         return widget
 
@@ -722,13 +813,6 @@ class StegoSightApp(QMainWindow):
         guidance_frame = QFrame()
         guidance_frame.setObjectName("AnalyzeGuidanceFrame")
         guidance_frame.setFrameShape(QFrame.StyledPanel)
-        guidance_frame.setStyleSheet(
-            "#AnalyzeGuidanceFrame {"
-            "background-color: rgba(79, 195, 247, 0.08);"
-            "border: 1px solid rgba(79, 195, 247, 0.3);"
-            "border-radius: 10px;"
-            "}"
-        )
         guidance_layout = QVBoxLayout(guidance_frame)
         guidance_layout.setSpacing(6)
         guidance_layout.setContentsMargins(12, 8, 12, 8)
