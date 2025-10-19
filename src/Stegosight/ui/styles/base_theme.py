@@ -39,7 +39,6 @@ QFrame#MethodCard {
     border: 1px solid #d0d7de;
     border-radius: 12px;
     background-color: #ffffff;
-    transition: all 120ms ease-in-out;
 }
 
 QFrame#MethodCard:hover {
@@ -49,7 +48,6 @@ QFrame#MethodCard:hover {
 QFrame#MethodCard[selected="true"] {
     border: 2px solid #1E88E5;
     background-color: #e3f2fd;
-    box-shadow: 0 6px 18px rgba(30, 136, 229, 0.18);
 }
 
 QFrame#MethodCard QLabel[role="title"] {
