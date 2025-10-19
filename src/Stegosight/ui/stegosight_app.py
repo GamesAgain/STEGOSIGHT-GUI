@@ -101,6 +101,49 @@ class RiskScoreWidget(QFrame):
         self.summary_label.setText(summary)
 
 
+class MethodCard(QFrame):
+    """Selectable card for choosing techniques in embed/extract flows."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, title: str, description: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._selected = False
+        self.setObjectName("MethodCard")
+        self.setCursor(Qt.PointingHandCursor)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(6)
+
+        self.title_label = QLabel(title)
+        self.title_label.setWordWrap(True)
+        self.title_label.setProperty("role", "title")
+
+        self.description_label = QLabel(description)
+        self.description_label.setWordWrap(True)
+        self.description_label.setProperty("role", "description")
+
+        layout.addWidget(self.title_label)
+        layout.addWidget(self.description_label)
+
+        self.setSelected(False)
+
+    def setSelected(self, selected: bool) -> None:
+        if self._selected == selected:
+            return
+        self._selected = selected
+        self.setProperty("selected", selected)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def mousePressEvent(self, event):  # type: ignore[override]
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
 class StegoSightApp(QMainWindow):
     """Main application window for the modernised StegoSight UI."""
 
@@ -123,6 +166,22 @@ class StegoSightApp(QMainWindow):
         self.extract_context_stack: QStackedWidget | None = None
         self.extract_text_output: QPlainTextEdit | None = None
         self.extract_file_info_label: QLabel | None = None
+
+        self.embed_selected_media_type = "image"
+        self.embed_selected_method = "content_adaptive"
+        self.embed_method_definitions = self._build_embed_method_definitions()
+        self.embed_method_cards: list[MethodCard] = []
+        self.embed_method_card_map: dict[MethodCard, str] = {}
+        self.embed_method_container_layout: QVBoxLayout | None = None
+        self.embed_method_container: QWidget | None = None
+
+        self.extract_selected_media_type = "image"
+        self.extract_selected_method = "adaptive"
+        self.extract_method_definitions = self._build_extract_method_definitions()
+        self.extract_method_cards: list[MethodCard] = []
+        self.extract_method_card_map: dict[MethodCard, str] = {}
+        self.extract_method_container_layout: QVBoxLayout | None = None
+        self.extract_method_container: QWidget | None = None
 
         self.analyze_risk_widget: RiskScoreWidget | None = None
         self.analyze_summary_label: QLabel | None = None
@@ -184,6 +243,34 @@ class StegoSightApp(QMainWindow):
             padding: 0 8px 8px 8px;
             color: #1E88E5;
             font-size: 14px;
+        }
+
+        QFrame#MethodCard {
+            border: 1px solid #d0d7de;
+            border-radius: 12px;
+            background-color: #ffffff;
+            transition: all 120ms ease-in-out;
+        }
+
+        QFrame#MethodCard:hover {
+            border-color: #64b5f6;
+        }
+
+        QFrame#MethodCard[selected="true"] {
+            border: 2px solid #1E88E5;
+            background-color: #e3f2fd;
+            box-shadow: 0 6px 18px rgba(30, 136, 229, 0.18);
+        }
+
+        QFrame#MethodCard QLabel[role="title"] {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1b1b1b;
+        }
+
+        QFrame#MethodCard QLabel[role="description"] {
+            font-size: 13px;
+            color: #616161;
         }
 
         #FileDropArea {
@@ -393,6 +480,219 @@ class StegoSightApp(QMainWindow):
         app.setStyleSheet(qss)
 
     # ------------------------------------------------------------------
+    def _build_embed_method_definitions(self) -> dict[str, dict[str, dict[str, str]]]:
+        return {
+            "image": {
+                "content_adaptive": {
+                    "title": "✨ Content-Adaptive (แนะนำ)",
+                    "desc": "วิเคราะห์ขอบและพื้นผิวเพื่อเลือกพื้นที่ฝังที่แนบเนียน",
+                },
+                "lsb": {
+                    "title": "🔹 LSB Matching",
+                    "desc": "ปรับ LSB เพื่อลดความผิดปกติทางสถิติ (เหมาะกับ PNG/BMP)",
+                },
+                "pvd": {
+                    "title": "🔸 Pixel Value Differencing",
+                    "desc": "กำหนดจำนวนบิตจากความต่างพิกเซล เพิ่มปริมาณข้อมูล",
+                },
+                "dct": {
+                    "title": "📊 Discrete Cosine Transform",
+                    "desc": "ฝังข้อมูลในสัมประสิทธิ์ DCT สำหรับ JPEG ทนการบีบอัดซ้ำ",
+                },
+                "append": {
+                    "title": "📎 ต่อท้ายไฟล์ (Tail Append)",
+                    "desc": "พ่วง payload ต่อท้ายไฟล์ต้นฉบับ (เหมาะกับ PNG/BMP)",
+                },
+            },
+            "audio": {
+                "audio_adaptive": {
+                    "title": "✨ Adaptive Audio",
+                    "desc": "วิเคราะห์ไดนามิกเสียง เลือกตำแหน่งฝังที่แนบเนียน",
+                },
+                "audio_lsb": {
+                    "title": "🎧 LSB ในสัญญาณเสียง",
+                    "desc": "ซ่อนข้อมูลด้วย LSB สำหรับ WAV/MP3/FLAC",
+                },
+                "audio_metadata": {
+                    "title": "🏷️ Metadata Tagging",
+                    "desc": "ฝังข้อมูลในเมทาดาทาของไฟล์เสียง (ID3/Tag)",
+                },
+            },
+            "video": {
+                "video_adaptive": {
+                    "title": "✨ Adaptive Video",
+                    "desc": "ประเมินเฟรมวิดีโอและเลือกพื้นที่ที่ยากต่อการสังเกต",
+                },
+                "video_lsb": {
+                    "title": "🎞️ Frame LSB",
+                    "desc": "ซ่อนข้อมูลทีละเฟรมด้วย LSB (รองรับ MP4/AVI/MKV/MOV)",
+                },
+                "video_metadata": {
+                    "title": "🏷️ Metadata Tagging",
+                    "desc": "ฝังข้อมูลในเมทาดาทาของไฟล์วิดีโอ (MP4/MKV/MOV)",
+                },
+            },
+        }
+
+    def _build_extract_method_definitions(self) -> dict[str, dict[str, dict[str, str]]]:
+        return {
+            "image": {
+                "adaptive": {
+                    "title": "✨ ตรวจจับอัตโนมัติ (แนะนำ)",
+                    "desc": "ลองถอดข้อมูลด้วยหลายเทคนิคเช่น LSB, PVD, DCT และ Tail Append",
+                },
+                "lsb": {
+                    "title": "🔹 LSB Matching",
+                    "desc": "ดึงข้อมูลจากการฝังแบบ LSB (เหมาะกับ PNG/BMP)",
+                },
+                "pvd": {
+                    "title": "🔸 Pixel Value Differencing",
+                    "desc": "ใช้ความต่างของพิกเซลเพื่อตีความบิตที่ซ่อนอยู่",
+                },
+                "dct": {
+                    "title": "📊 Discrete Cosine Transform",
+                    "desc": "กู้ข้อมูลที่ฝังในสัมประสิทธิ์ DCT ของไฟล์ JPEG",
+                },
+                "append": {
+                    "title": "📎 Tail Append",
+                    "desc": "ตรวจสอบข้อมูลที่อาจถูกต่อท้ายไฟล์",
+                },
+            },
+            "audio": {
+                "audio_adaptive": {
+                    "title": "✨ ตรวจจับอัตโนมัติ",
+                    "desc": "ทดลอง LSB และเทคนิคเฉพาะเสียงของ STEGOSIGHT",
+                },
+                "audio_lsb": {
+                    "title": "🎧 LSB ในสัญญาณเสียง",
+                    "desc": "ถอดข้อมูลที่ซ่อนในบิตต่ำสุดของสัญญาณ PCM",
+                },
+            },
+            "video": {
+                "video_adaptive": {
+                    "title": "✨ ตรวจจับอัตโนมัติ",
+                    "desc": "ลองกู้ข้อมูลจากเฟรมวิดีโอโดยอัตโนมัติ",
+                },
+                "video_lsb": {
+                    "title": "🎞️ Frame LSB",
+                    "desc": "ดึงข้อมูลจากบิตต่ำสุดของแต่ละพิกเซลในเฟรม",
+                },
+            },
+        }
+
+    # ------------------------------------------------------------------
+    def _populate_embed_method_cards(self, media_type: str) -> None:
+        layout = self.embed_method_container_layout
+        if layout is None:
+            return
+
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        methods = self.embed_method_definitions.get(media_type, {})
+        self.embed_method_cards = []
+        self.embed_method_card_map = {}
+
+        for key, meta in methods.items():
+            card = MethodCard(meta["title"], meta["desc"])
+            card.clicked.connect(lambda _, c=card: self._select_embed_method_card(c))
+            layout.addWidget(card)
+            self.embed_method_cards.append(card)
+            self.embed_method_card_map[card] = key
+
+        layout.addStretch(1)
+
+        if not methods:
+            self.embed_selected_method = ""
+            return
+
+        if self.embed_selected_method not in methods:
+            self.embed_selected_method = next(iter(methods))
+
+        self._update_embed_method_selection(self.embed_selected_method)
+
+    def _select_embed_method_card(self, card: MethodCard) -> None:
+        method_key = self.embed_method_card_map.get(card)
+        if not method_key:
+            return
+
+        self.embed_selected_method = method_key
+        self._update_embed_method_selection(method_key)
+        print(f"[UI] Embed method selected: {method_key}")
+
+    def _update_embed_method_selection(self, method_key: str) -> None:
+        for card, key in self.embed_method_card_map.items():
+            card.setSelected(key == method_key)
+
+    def _set_embed_media_type(self, media_type: str) -> None:
+        if media_type not in self.embed_method_definitions:
+            return
+        if self.embed_selected_media_type == media_type and self.embed_method_cards:
+            return
+        self.embed_selected_media_type = media_type
+        self._populate_embed_method_cards(media_type)
+
+    def _populate_extract_method_cards(self, media_type: str) -> None:
+        layout = self.extract_method_container_layout
+        if layout is None:
+            return
+
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        methods = self.extract_method_definitions.get(media_type, {})
+        self.extract_method_cards = []
+        self.extract_method_card_map = {}
+
+        for key, meta in methods.items():
+            card = MethodCard(meta["title"], meta["desc"])
+            card.clicked.connect(lambda _, c=card: self._select_extract_method_card(c))
+            layout.addWidget(card)
+            self.extract_method_cards.append(card)
+            self.extract_method_card_map[card] = key
+
+        layout.addStretch(1)
+
+        if not methods:
+            self.extract_selected_method = ""
+            return
+
+        if self.extract_selected_method not in methods:
+            self.extract_selected_method = next(iter(methods))
+
+        self._update_extract_method_selection(self.extract_selected_method)
+
+    def _select_extract_method_card(self, card: MethodCard) -> None:
+        method_key = self.extract_method_card_map.get(card)
+        if not method_key:
+            return
+
+        self.extract_selected_method = method_key
+        self._update_extract_method_selection(method_key)
+        print(f"[UI] Extract method selected: {method_key}")
+
+    def _update_extract_method_selection(self, method_key: str) -> None:
+        for card, key in self.extract_method_card_map.items():
+            card.setSelected(key == method_key)
+
+    def _set_extract_media_type(self, media_type: str) -> None:
+        if media_type not in self.extract_method_definitions:
+            return
+        if (
+            self.extract_selected_media_type == media_type
+            and self.extract_method_cards
+        ):
+            return
+        self.extract_selected_media_type = media_type
+        self._populate_extract_method_cards(media_type)
+
+    # ------------------------------------------------------------------
     def _build_ui(self) -> None:
         self.setCentralWidget(self.tabs)
         self.tabs.addTab(self._create_embed_tab(), "ซ่อนข้อมูล")
@@ -478,17 +778,28 @@ class StegoSightApp(QMainWindow):
         # Step 4 ---------------------------------------------------------
         step4_group = QGroupBox("ขั้นตอนที่ 4: เลือกเทคนิคการซ่อน")
         step4_layout = QVBoxLayout(step4_group)
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["🤖 อัตโนมัติ (แนะนำ)", "🎯 กำหนดเอง"])
-        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
-        self.manual_combo = QComboBox()
-        self.manual_combo.addItems(["LSB", "Append", "Parity"])
-        self.manual_combo.setEnabled(False)
-        self.manual_combo.currentTextChanged.connect(
-            lambda text: print(f"[UI] Manual technique selected: {text}")
+        step4_layout.setSpacing(12)
+
+        method_desc = QLabel(
+            "เลือกเทคนิคที่ใช้ซ่อนข้อมูลให้ตรงกับไฟล์ หรือใช้โหมด Content-Adaptive"
         )
-        step4_layout.addWidget(self.mode_combo)
-        step4_layout.addWidget(self.manual_combo)
+        method_desc.setWordWrap(True)
+        step4_layout.addWidget(method_desc)
+
+        self.embed_method_container = QWidget()
+        self.embed_method_container_layout = QVBoxLayout(self.embed_method_container)
+        self.embed_method_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.embed_method_container_layout.setSpacing(10)
+        step4_layout.addWidget(self.embed_method_container)
+
+        self._populate_embed_method_cards(self.embed_selected_media_type)
+
+        embed_hint = QLabel(
+            "โหมด Content-Adaptive จะเลือกค่าที่เหมาะสมให้โดยอัตโนมัติ แต่ยังสามารถเลือกวิธีเฉพาะได้"
+        )
+        embed_hint.setWordWrap(True)
+        embed_hint.setStyleSheet("color: #546e7a; font-size: 13px;")
+        step4_layout.addWidget(embed_hint)
         control_layout.addWidget(step4_group)
 
         control_layout.addStretch(1)
@@ -634,6 +945,33 @@ class StegoSightApp(QMainWindow):
         step2_layout.addWidget(self.extract_encrypted_checkbox)
         step2_layout.addWidget(self.extract_password_input)
         control_layout.addWidget(step2_group)
+
+        step3_group = QGroupBox("ขั้นตอนที่ 3: เลือกเทคนิคการดึงข้อมูล")
+        step3_layout = QVBoxLayout(step3_group)
+        step3_layout.setSpacing(12)
+
+        extract_desc = QLabel(
+            "เลือกเทคนิคให้ตรงกับตอนฝังข้อมูล หรือใช้โหมดตรวจจับอัตโนมัติ"
+        )
+        extract_desc.setWordWrap(True)
+        step3_layout.addWidget(extract_desc)
+
+        self.extract_method_container = QWidget()
+        self.extract_method_container_layout = QVBoxLayout(self.extract_method_container)
+        self.extract_method_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.extract_method_container_layout.setSpacing(10)
+        step3_layout.addWidget(self.extract_method_container)
+
+        self._populate_extract_method_cards(self.extract_selected_media_type)
+
+        extract_hint = QLabel(
+            "ระบบจะลองหลายเทคนิคเมื่อเลือกโหมดตรวจจับอัตโนมัติ"
+        )
+        extract_hint.setWordWrap(True)
+        extract_hint.setStyleSheet("color: #546e7a; font-size: 13px;")
+        step3_layout.addWidget(extract_hint)
+
+        control_layout.addWidget(step3_group)
 
         control_layout.addStretch(1)
 
@@ -861,6 +1199,9 @@ class StegoSightApp(QMainWindow):
     # Slots & UI Updates ------------------------------------------------
     def on_cover_file_selected(self, path: str) -> None:
         print(f"[Action] Cover file selected: {path}")
+        media_type = self._infer_media_type_from_suffix(os.path.splitext(path)[1])
+        if media_type:
+            self._set_embed_media_type(media_type)
         if self.embed_context_stack is not None:
             self.embed_context_stack.setCurrentIndex(1)
         self._update_embed_preview(path)
@@ -868,14 +1209,10 @@ class StegoSightApp(QMainWindow):
     def on_secret_file_selected(self, path: str) -> None:
         print(f"[Action] Secret file selected: {path}")
 
-    def on_mode_changed(self, mode: str) -> None:
-        manual_enabled = "กำหนดเอง" in mode
-        print(f"[Action] Mode changed to {mode}; manual enabled = {manual_enabled}")
-        if self.manual_combo is not None:
-            self.manual_combo.setEnabled(manual_enabled)
-
     def on_embed_clicked(self) -> None:
-        print("[Action] เริ่มการซ่อนข้อมูล...")
+        print(
+            f"[Action] เริ่มการซ่อนข้อมูล... (method={self.embed_selected_method})"
+        )
         if self.embed_context_stack is not None:
             self.embed_context_stack.setCurrentIndex(2)
         QTimer.singleShot(1500, self._complete_embedding)
@@ -916,9 +1253,14 @@ class StegoSightApp(QMainWindow):
 
     def on_extract_file_selected(self, path: str) -> None:
         print(f"[Action] Extract target selected: {path}")
+        media_type = self._infer_media_type_from_suffix(os.path.splitext(path)[1])
+        if media_type:
+            self._set_extract_media_type(media_type)
 
     def on_extract_clicked(self) -> None:
-        print("[Action] เริ่มการดึงข้อมูล...")
+        print(
+            f"[Action] เริ่มการดึงข้อมูล... (method={self.extract_selected_method})"
+        )
         if self.extract_context_stack is not None:
             self.extract_context_stack.setCurrentIndex(1)
         if self.extract_text_output is not None:
@@ -1049,5 +1391,31 @@ class StegoSightApp(QMainWindow):
         return f"~{StegoSightApp._format_file_size(int(approx))} ของข้อมูลลับ"
 
 
-__all__ = ["StegoSightApp", "FileDropArea", "RiskScoreWidget"]
+    @staticmethod
+    def _infer_media_type_from_suffix(suffix: str) -> str | None:
+        suffix = (suffix or "").lower()
+        image_exts = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
+        audio_exts = {".wav", ".mp3", ".flac", ".aac", ".ogg", ".wma"}
+        video_exts = {
+            ".avi",
+            ".mp4",
+            ".mkv",
+            ".mov",
+            ".ogv",
+            ".wmv",
+            ".m4v",
+            ".mpeg",
+            ".mpg",
+        }
+
+        if suffix in image_exts:
+            return "image"
+        if suffix in audio_exts:
+            return "audio"
+        if suffix in video_exts:
+            return "video"
+        return None
+
+
+__all__ = ["StegoSightApp", "FileDropArea", "RiskScoreWidget", "MethodCard"]
 
