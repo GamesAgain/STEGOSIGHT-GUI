@@ -1,0 +1,7 @@
+﻿<RCC>
+  <qresource prefix="/">
+    <file alias="ui/main_window.ui">main_window.ui</file>
+    <file alias="qss/dark.qss">../assets/qss/dark.qss</file>
+    <file alias="qss/light.qss">../assets/qss/light.qss</file>
+  </qresource>
+</RCC>

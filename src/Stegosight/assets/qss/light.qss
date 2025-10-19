@@ -1,0 +1,3 @@
+﻿QMainWindow { background: #ffffff; color: #111827; }
+QMenuBar, QStatusBar { background: #f3f4f6; color: #111827; }
+QWidget { font-family: "Segoe UI", "Sarabun", sans-serif; font-size: 10pt; }
